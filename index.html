@@ -321,6 +321,49 @@
   .accordion-title.is-note,
   .accordion-title-input.is-note {
     font-size: 0.9rem;
+    font-weight: normal;
+    white-space: pre-wrap;
+  }
+
+  .accordion-body-edit-btn {
+    display: block;
+    width: 100%;
+    padding: 0.5rem;
+    background: none;
+    border: 1px dashed #555;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.85rem;
+    color: #999;
+    transition: color 0.15s, border-color 0.15s, background-color 0.15s;
+    text-align: center;
+  }
+
+  .accordion-body-edit-btn:hover {
+    color: #e8e8e8;
+    border-color: #777;
+    background-color: #2a2a2a;
+  }
+
+  .accordion-note-textarea {
+    width: 100%;
+    min-height: 2.8em;
+    padding: 0.5rem 0.7rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+    line-height: 1.55;
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    border: none;
+    outline: none;
+    resize: none;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  .accordion-note-textarea:focus {
+    background-color: #1a1a1a;
   }
 
   .accordion-body-textarea {
@@ -377,6 +420,21 @@
     color: #666;
     padding: 1.5rem 0;
     font-size: 0.9rem;
+  }
+
+  /* Mobile adjustments */
+  @media (max-width: 600px) {
+    body {
+      padding: 1rem 0.75rem;
+    }
+    .main-title,
+    .main-title-input {
+      font-size: 1.2rem;
+    }
+    .accordion-title,
+    .accordion-title-input {
+      font-size: 1rem;
+    }
   }
 
   /* scrollbar styling */
@@ -764,12 +822,21 @@
       titleSpan.className = 'accordion-title' + (isNote ? ' is-note' : '');
       titleSpan.textContent = acc.title;
 
-      const titleInput = document.createElement('input');
-      titleInput.type = 'text';
-      titleInput.className = 'accordion-title-input' + (isNote ? ' is-note' : '');
-      titleInput.value = acc.title;
-      titleInput.style.display = 'none';
-      titleInput.dataset.accordionId = acc.id;
+      let titleInput;
+      if (isNote) {
+        titleInput = document.createElement('textarea');
+        titleInput.className = 'accordion-note-textarea';
+        titleInput.value = acc.title;
+        titleInput.style.display = 'none';
+        titleInput.dataset.accordionId = acc.id;
+      } else {
+        titleInput = document.createElement('input');
+        titleInput.type = 'text';
+        titleInput.className = 'accordion-title-input';
+        titleInput.value = acc.title;
+        titleInput.style.display = 'none';
+        titleInput.dataset.accordionId = acc.id;
+      }
 
       const actionsDiv = document.createElement('div');
       actionsDiv.className = 'header-actions';
@@ -805,10 +872,17 @@
       if (!isNote) {
         const bodyDiv = document.createElement('div');
         bodyDiv.className = 'accordion-body' + (acc.isOpen ? ' is-open' : '');
+
+        const editBodyBtn = document.createElement('button');
+        editBodyBtn.className = 'accordion-body-edit-btn';
+        editBodyBtn.textContent = '\u270F\uFE0F Click to edit';
+        bodyDiv.appendChild(editBodyBtn);
+
         const textarea = document.createElement('textarea');
         textarea.className = 'accordion-body-textarea';
         textarea.value = acc.body;
         textarea.dataset.accordionId = acc.id;
+        textarea.readOnly = true;
         bodyDiv.appendChild(textarea);
         item.appendChild(bodyDiv);
 
@@ -817,10 +891,16 @@
           autoResizeTextarea(textarea);
         });
 
+        editBodyBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          textarea.readOnly = false;
+          textarea.focus();
+          editBodyBtn.style.display = 'none';
+        });
+
         if (acc.isOpen) {
           requestAnimationFrame(function() {
             autoResizeTextarea(textarea);
-            //textarea.focus();
           });
         }
       }
@@ -847,30 +927,55 @@
         }
       });
 
-      titleInput.addEventListener('keydown', function(e) {
-        e.stopPropagation();
-        if (e.key === 'Enter') {
-          const val = titleInput.value.trim();
-          if (val !== '') updateAccordionTitle(acc.id, val);
-          else titleInput.blur();
-          editingAccordionId = null;
-          render();
-        } else if (e.key === 'Escape') {
-          editingAccordionId = null;
-          render();
-        }
-      });
+      if (isNote) {
+        titleInput.addEventListener('input', function() {
+          autoResizeTextarea(titleInput);
+        });
 
-      titleInput.addEventListener('blur', function() {
-        setTimeout(function() {
-          if (editingAccordionId === acc.id) {
-            const val = titleInput.value.trim();
-            if (val !== '') updateAccordionTitle(acc.id, val);
+        titleInput.addEventListener('keydown', function(e) {
+          e.stopPropagation();
+          if (e.key === 'Escape') {
             editingAccordionId = null;
             render();
           }
-        }, 0);
+        });
+
+        titleInput.addEventListener('blur', function() {
+          setTimeout(function() {
+            if (editingAccordionId === acc.id) {
+              const val = titleInput.value.trim();
+              if (val !== '') updateAccordionTitle(acc.id, val);
+              editingAccordionId = null;
+              render();
+            }
+          }, 0);
+        });
+      } else {
+        titleInput.addEventListener('keydown', function(e) {
+          e.stopPropagation();
+          if (e.key === 'Enter') {
+            const val = titleInput.value.trim();
+            if (val !== '') updateAccordionTitle(acc.id, val);
+            else titleInput.blur();
+            editingAccordionId = null;
+            render();
+          } else if (e.key === 'Escape') {
+            editingAccordionId = null;
+            render();
+          }
       });
+
+        titleInput.addEventListener('blur', function() {
+          setTimeout(function() {
+            if (editingAccordionId === acc.id) {
+              const val = titleInput.value.trim();
+              if (val !== '') updateAccordionTitle(acc.id, val);
+              editingAccordionId = null;
+              render();
+            }
+          }, 0);
+        });
+      }
     });
   }
 
@@ -949,7 +1054,8 @@
     editingAccordionId = id;
     render();
     requestAnimationFrame(function() {
-      const input = document.querySelector('.accordion-title-input[data-accordion-id="' + id + '"]');
+      const sel = '.accordion-title-input[data-accordion-id="' + id + '"], .accordion-note-textarea[data-accordion-id="' + id + '"]';
+      const input = document.querySelector(sel);
       if (input) { input.focus(); input.select(); }
     });
   }
@@ -1043,7 +1149,7 @@
 
 })();
 </script>
- <script>
+<script>
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('service-worker.js');
   }
